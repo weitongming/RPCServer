@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context
+
+       http://www.springframework.org/schema/context/spring-context.xsd">
+
+    <context:component-scan base-package="com.weitongming.myweb.*"/>
+
+    <context:property-placeholder location="classpath:data.properties"/>
+    <!--服务发现 发现zk上的服务 目前尚未使用-->
+    <bean id="serviceDiscovery" class="com.weitongming.rpc.registry.ServiceDiscovery">
+        <constructor-arg name="registryAddress" value="${registry.address}"/>
+    </bean>
+    <!--rpc客户端 -->
+    <bean id="rpcClient" class="com.weitongming.rpc.client.RpcClient">
+        <constructor-arg name="serviceDiscovery" ref="serviceDiscovery"/>
+    </bean>
+
+    <!--服务注册 -->
+    <bean id="serviceRegistry" class="com.weitongming.rpc.registry.ServiceRegistry">
+        <constructor-arg name="registryAddress" value="${registry.address}"/>
+    </bean>
+    <!-- Redis连接池的配置 -->
+    <bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig" >
+        <property name="maxTotal" value="${redis.pool.maxActive}"/>
+        <property name="maxIdle" value="${redis.pool.maxIdle}"/>
+        <property name="minIdle" value="${redis.pool.minIdle}"/>
+        <property name="maxWaitMillis" value="${redis.pool.maxWait}"/>
+        <property name="testOnBorrow" value="${redis.pool.testOnBorrow}"/>
+        <property name="testOnReturn" value="${redis.pool.testOnReturn}"/>
+    </bean>
+    <bean id="jedisPool" class="redis.clients.jedis.JedisPool">
+        <constructor-arg index="0" ref="jedisPoolConfig"/>
+        <constructor-arg index="1" value="${redis.hostName}" />
+        <constructor-arg index="2" value="${redis.port}" />
+        <constructor-arg index="3" value="${redis.timeout}" />
+    </bean>
+    <!--邮件处理-->
+    <bean id="javaMailSender" class="org.springframework.mail.javamail.JavaMailSenderImpl">
+        <property name="host" value="${mail.host}"/>
+        <property name="username" value="${mail.username}"/>
+        <property name="password" value="${mail.password}"/>
+        <property name="javaMailProperties">
+            <props>
+                <prop key="mail.smtp.auth">true</prop>
+            </props>
+        </property>
+    </bean>
+    <!--rpc服务 -->
+    <bean id="rpcServer" class="com.weitongming.rpc.server.RpcServer">
+        <constructor-arg name="serverAddress" value="${server.address}"/>
+        <constructor-arg name="serviceRegistry" ref="serviceRegistry"/>
+    </bean>
+
+    <!-- session工厂 -->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"/>
+        <property name="configLocation" value="classpath:mybatis-config.xml"/>
+    </bean>
+
+    <!-- 扫描器 -->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.weitongming.myweb.mapper"/>
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
+    </bean>
+    <!--数据源-->
+    <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
+        <property name="url" value="${mysql.url}" />
+        <property name="driverClassName" value="${mysql.driverClassName}" />
+        <property name="username" value="${mysql.username}" />
+        <!--MySQL密码-->
+        <property name="password" value="${mysql.password}" />
+    </bean>
+    <!--线程池-->
+    <bean id="taskExecutor" class="org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor">
+        <property name="corePoolSize" value="10"/>
+        <property name="maxPoolSize" value="20"/>
+        <property name="queueCapacity" value="20"/>
+    </bean>
+    <!--<bean id="UpdatePostReadNumJob" class="com.weitongming.myweb.quartzJob.UpdatePostReadNumJob"></bean>-->
+    <!--&lt;!&ndash; 第一步：指定执行的类的方法名 &ndash;&gt;-->
+    <!--<bean id="jobDetail" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">-->
+        <!--<property name="targetObject"><ref bean="UpdatePostReadNumJob"/></property>-->
+        <!--<property name="targetMethod"><value>runJob</value></property>-->
+    <!--</bean>-->
+    <!--&lt;!&ndash; 第二步：指定触发的类型 &ndash;&gt;-->
+    <!--<bean id="contrigger" class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">-->
+        <!--<property name="jobDetail"><ref bean="jobDetail" /></property>-->
+        <!--<property name="cronExpression" value="*/2 * * * * ?" />-->
+    <!--</bean>-->
+    <!--&lt;!&ndash; 第三步：开启定时任务 &ndash;&gt;-->
+    <!--<bean id="startQuertz" class="org.springframework.scheduling.quartz.SchedulerFactoryBean" lazy-init="false">-->
+        <!--<property name="triggers">-->
+            <!--<list>-->
+                <!--<ref bean="contrigger"/>-->
+            <!--</list>-->
+        <!--</property>-->
+
+    <!--</bean>-->
+</beans>
